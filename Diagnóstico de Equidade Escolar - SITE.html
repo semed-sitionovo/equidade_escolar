@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico de Equidade Escolar</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a5276;
+    --primary-light: #2e86c1;
+    --primary-lighter: #aed6f1;
+    --accent: #117a65;
+    --accent-light: #1abc9c;
+    --warn: #e67e22;
+    --danger: #c0392b;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --text: #1c2833;
+    --muted: #5d6d7e;
+    --border: #d5dbdb;
+    --radius: 12px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white; padding: 0; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .header-top { padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+  .header-icon { font-size: 2rem; }
+  .header-text h1 { font-size: 1.25rem; font-weight: 700; }
+  .header-text p { font-size: 0.8rem; opacity: 0.85; }
+  .progress-bar-wrap { background: rgba(0,0,0,0.2); height: 6px; }
+  .progress-bar-fill {
+    height: 100%; background: var(--accent-light);
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+  .progress-label { padding: 4px 32px 8px; font-size: 0.75rem; opacity: 0.85; display: flex; justify-content: space-between; }
+
+  /* STEPS NAV */
+  .steps-nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 32px; display: flex; gap: 8px; overflow-x: auto; }
+  .step-pill {
+    padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    border: 2px solid var(--border); background: transparent; color: var(--muted);
+    cursor: pointer; white-space: nowrap; transition: all 0.2s;
+  }
+  .step-pill.active { background: var(--primary); border-color: var(--primary); color: white; }
+  .step-pill.done { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* MAIN */
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 80px; }
+
+  /* CARD */
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 32px; margin-bottom: 24px; }
+  .card-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+  .dim-badge {
+    min-width: 52px; height: 52px; border-radius: 10px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-weight: 800; font-size: 0.65rem;
+    color: white; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .dim-badge span { font-size: 1.3rem; line-height: 1; }
+  .card-header-text h2 { font-size: 1.2rem; color: var(--primary); font-weight: 700; }
+  .card-header-text p { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+
+  /* DIM SCORE INLINE */
+  .dim-score-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding: 10px 14px; background: var(--bg); border-radius: 8px; }
+  .dim-score-label { font-size: 0.8rem; color: var(--muted); flex: 1; }
+  .dim-score-value { font-size: 1.1rem; font-weight: 800; min-width: 40px; text-align: right; }
+  .dim-score-mini { flex: 2; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .dim-score-mini-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease, background 0.4s ease; width: 0%; }
+
+  /* QUESTIONS TABLE */
+  .questions-table { width: 100%; border-collapse: collapse; }
+  .questions-table th { background: var(--primary); color: white; padding: 10px 14px; font-size: 0.8rem; text-align: center; }
+  .questions-table th:first-child { text-align: left; border-radius: 8px 0 0 0; }
+  .questions-table th:last-child { border-radius: 0 8px 0 0; }
+  .questions-table td { padding: 14px; border-bottom: 1px solid var(--border); font-size: 0.88rem; vertical-align: middle; }
+  .questions-table tr:last-child td { border-bottom: none; }
+  .questions-table tr:hover td { background: #f8fafc; }
+
+  /* RADIO BUTTONS */
+  .radio-group { display: flex; gap: 6px; justify-content: center; }
+  .radio-btn {
+    width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--border);
+    background: white; color: var(--muted); font-weight: 700; font-size: 0.9rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.18s; position: relative;
+  }
+  .radio-btn:hover { border-color: var(--primary-light); color: var(--primary); }
+  .radio-btn.selected-1 { background: #fadbd8; border-color: var(--danger); color: var(--danger); }
+  .radio-btn.selected-2 { background: #fdebd0; border-color: var(--warn); color: var(--warn); }
+  .radio-btn.selected-3 { background: #d5f5e3; border-color: #27ae60; color: #27ae60; }
+  .radio-btn.selected-4 { background: #d6eaf8; border-color: var(--primary); color: var(--primary); }
+  .scale-labels { display: flex; justify-content: space-around; padding: 4px 0 16px; font-size: 0.7rem; color: var(--muted); }
+
+  /* OPEN QUESTION */
+  .open-question { margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--border); }
+  .open-question label { font-size: 0.85rem; color: var(--muted); font-weight: 600; display: block; margin-bottom: 8px; }
+  .open-question textarea {
+    width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 12px; font-size: 0.88rem; font-family: inherit; resize: vertical;
+    min-height: 80px; color: var(--text); transition: border-color 0.2s;
+  }
+  .open-question textarea:focus { outline: none; border-color: var(--primary-light); }
+
+  /* FORM FIELDS */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1/-1; }
+  .form-group label { font-size: 0.82rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input, .form-group select {
+    border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 14px;
+    font-size: 0.9rem; font-family: inherit; color: var(--text);
+    transition: border-color 0.2s; background: white;
+  }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary-light); }
+  .radio-group-check { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+  .check-option { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; }
+  .check-option input { width: 16px; height: 16px; accent-color: var(--primary); }
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 12px; justify-content: space-between; margin-top: 24px; }
+  .btn {
+    padding: 12px 28px; border-radius: 8px; border: none; font-weight: 700; font-size: 0.9rem;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-light); }
+  .btn-secondary { background: white; color: var(--muted); border: 1.5px solid var(--border); }
+  .btn-secondary:hover { background: var(--bg); }
+  .btn-success { background: var(--accent); color: white; }
+  .btn-success:hover { background: var(--accent-light); }
+
+  /* RESULT */
+  .result-hero { text-align: center; padding: 40px 20px; }
+  .result-score-big { font-size: 5rem; font-weight: 900; line-height: 1; }
+  .result-level { font-size: 1.5rem; font-weight: 700; margin-top: 8px; padding: 8px 24px; border-radius: 30px; display: inline-block; }
+  .level-consolidado { background: #d6eaf8; color: var(--primary); }
+  .level-desenvolvimento { background: #d5f5e3; color: #1e8449; }
+  .level-atencao { background: #fdebd0; color: var(--warn); }
+  .level-critico { background: #fadbd8; color: var(--danger); }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+  .result-dim-card { padding: 16px; border-radius: 10px; border-left: 4px solid; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .result-dim-card .dim-name { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+  .result-dim-card .dim-val { font-size: 2rem; font-weight: 900; margin: 4px 0; }
+  .result-dim-card .dim-level { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 12px; display: inline-block; }
+  .result-dim-card .dim-bar-wrap { height: 6px; background: var(--border); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .result-dim-card .dim-bar-fill { height: 100%; border-radius: 3px; }
+
+  .chart-wrap { max-width: 420px; margin: 0 auto; }
+
+  /* PLANO */
+  .plano-item { padding: 20px; border-radius: 10px; margin-bottom: 16px; border-left: 4px solid; }
+  .plano-item h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+  .plano-item ul { margin-left: 16px; }
+  .plano-item ul li { font-size: 0.86rem; margin-bottom: 4px; color: var(--text); }
+  .plano-item .plano-level { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 8px; }
+
+  /* PRINT / DOWNLOAD ACTIONS */
+  .print-actions {
+    position: fixed; bottom: 24px; right: 24px; z-index: 200;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .download-pdf-btn {
+    border: none; border-radius: 50px !important; font-size: 0.92rem; padding: 14px 26px;
+    color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    font-family: inherit;
+  }
+  .download-pdf-btn { background: var(--primary); box-shadow: 0 6px 18px rgba(26,82,118,0.45); }
+  .download-pdf-btn:hover { background: var(--primary-light); }
+  .download-pdf-btn:disabled, #downloadPdfBtnInline:disabled { opacity: 0.7; cursor: wait; }
+
+  @media print {
+    header { position: static; }
+    .btn, .print-actions, .steps-nav { display: none !important; }
+    .card { box-shadow: none; border: 1px solid var(--border); }
+    .fade-in, .step { animation: none !important; opacity: 1 !important; transform: none !important; }
+  }
+
+  /* ================= RESPONSIVIDADE MOBILE ================= */
+  @media (max-width: 600px) {
+    .header-top { padding: 10px 14px; gap: 10px; }
+    .header-icon { font-size: 1.5rem; }
+    .header-text h1 { font-size: 1rem; line-height: 1.2; }
+    .progress-label { padding: 4px 14px 6px; font-size: 0.68rem; }
+    .steps-nav { padding: 8px 10px; gap: 6px; -webkit-overflow-scrolling: touch; }
+    .step-pill { padding: 6px 11px; font-size: 0.68rem; }
+
+    main { padding: 16px 10px 160px; }
+    .card { padding: 18px 14px; border-radius: 10px; }
+    .card-header { gap: 10px; margin-bottom: 18px; }
+    .dim-badge { min-width: 44px; height: 44px; font-size: 0.58rem; }
+    .dim-badge span { font-size: 1.1rem; }
+    .card-header-text h2 { font-size: 1.02rem; }
+    .card-header-text p { font-size: 0.78rem; }
+
+    .form-grid { grid-template-columns: 1fr; gap: 14px; }
+    .form-group input, .form-group select, .open-question textarea { font-size: 16px; } /* evita zoom automático no iOS */
+    .result-grid { grid-template-columns: 1fr; }
+
+    .dim-score-bar { flex-wrap: wrap; padding: 10px 12px; }
+    .dim-score-label { flex: 1 1 100%; margin-bottom: 4px; }
+
+    /* Tabela de perguntas vira cartões empilhados */
+    .questions-table, .questions-table tbody { display: block; width: 100%; }
+    .questions-table thead { display: none; }
+    .questions-table tr { display: block; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; overflow: hidden; background: white; }
+    .questions-table tr:hover td { background: transparent; }
+    .questions-table td { display: block; border-bottom: none; padding: 0; }
+    .questions-table td:first-child { max-width: none !important; padding: 12px 14px; background: var(--bg); font-weight: 600; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+    .questions-table td:not(:first-child) { display: inline-flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 25%; padding: 10px 2px; vertical-align: top; }
+    .questions-table td:not(:first-child)::before { content: attr(data-label); display: block; font-size: 0.6rem; color: var(--muted); font-weight: 600; margin-bottom: 6px; text-align: center; min-height: 26px; }
+    .radio-btn { width: 36px; height: 36px; font-size: 0.85rem; }
+
+    .btn-row { gap: 10px; }
+    .btn { padding: 12px 14px; font-size: 0.85rem; flex: 1; justify-content: center; }
+
+    .result-score-big { font-size: 3.4rem; }
+    .result-level { font-size: 1.1rem; padding: 6px 18px; }
+    .chart-wrap { max-width: 100%; }
+
+    .print-actions { bottom: 12px; right: 12px; left: 12px; align-items: stretch; gap: 8px; }
+    .download-pdf-btn { padding: 14px 16px; font-size: 0.85rem; justify-content: center; }
+  }
+  @media (max-width: 380px) {
+    .radio-btn { width: 32px; height: 32px; font-size: 0.78rem; }
+    .result-score-big { font-size: 2.8rem; }
+  }
+
+  /* HIDDEN */
+  .step { display: none; }
+  .step.active { display: block; }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="header-icon">🏫</div>
+    <div class="header-text">
+      <h1>Diagnóstico de Equidade Escolar</h1>
+    </div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+  <div class="progress-label">
+    <span id="progressText">Etapa 1 de 8</span>
+    <span id="progressPct">0% concluído</span>
+  </div>
+</header>
+
+<nav class="steps-nav" id="stepsNav">
+  <button class="step-pill active" onclick="goToStep(0)">Identificação</button>
+  <button class="step-pill" onclick="goToStep(1)">D1 – Gestão</button>
+  <button class="step-pill" onclick="goToStep(2)">D2 – Currículo</button>
+  <button class="step-pill" onclick="goToStep(3)">D3 – Avaliação</button>
+  <button class="step-pill" onclick="goToStep(4)">D4 – Espaços</button>
+  <button class="step-pill" onclick="goToStep(5)">D5 – Racial</button>
+  <button class="step-pill" onclick="goToStep(6)">D6 – Socioecon.</button>
+  <button class="step-pill" onclick="goToStep(7)">Resultado</button>
+</nav>
+
+<main>
+
+<!-- STEP 0: IDENTIFICAÇÃO -->
+<div class="step active fade-in" id="step-0">
+  <div class="card">
+    <div class="card-header">
+      <div class="dim-badge" style="background: linear-gradient(135deg,#1a5276,#2e86c1);">
+        <span>📋</span>ID
+      </div>
+      <div class="card-header-text">
+        <h2>Identificação da Escola</h2>
+        <p>Preencha os dados institucionais antes de iniciar o diagnóstico</p>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Nome da Escola</label>
+        <input type="text" id="nomeEscola" placeholder="Ex.: E.E. Prof. João da Silva" />
+      </div>
+      <div class="form-group">
+        <label>Município *</label>
+        <input type="text" id="municipio" placeholder="Município" />
+      </div>
+      <div class="form-group">
+        <label>Rede *</label>
+        <select id="rede">
+          <option value="">Selecione...</option>
+          <option>Municipal</option>
+          <option>Estadual</option>
+          <option>Federal</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Localização *</label>
+        <div class="radio-group-check">
+          <label class="check-option"><input type="radio" name="localizacao" value="Urbana"> Urbana</label>
+          <label class="check-option"><input type="radio" name="localizacao" value="Rural"> Rural</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Modalidade *</label>
+        <div class="radio-group-check">
+          <label class="check-option"><input type="checkbox" name="modalidade" value="Ensino Fundamental"> Fund.</label>
+          <label class="check-option"><input type="checkbox" name="modalidade" value="Ensino Médio"> Médio</label>
+          <label class="check-option"><input type="checkbox" name="modalidade" value="EJA"> EJA</label>
+          <label class="check-option"><input type="checkbox" name="modalidade" value="Educação Integral"> Integral</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Nº de Estudantes</label>
+        <input type="number" id="numEstudantes" placeholder="Ex.: 450" min="1" />
+      </div>
+      <div class="form-group">
+        <label>Responsável pelo preenchimento *</label>
+        <input type="text" id="responsavel" placeholder="Nome completo" />
+      </div>
+      <div class="form-group">
+        <label>Função *</label>
+        <select id="funcao">
+          <option value="">Selecione...</option>
+          <option>Diretor(a)</option>
+          <option>Vice-diretor(a)</option>
+          <option>Coordenador(a) Pedagógico(a)</option>
+          <option>Outro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Data</label>
+        <input type="date" id="dataPreenchimento" />
+      </div>
+    </div>
+    <div class="btn-row">
+      <div></div>
+      <button class="btn btn-primary" onclick="nextStep()">Iniciar Diagnóstico →</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEPS 1-6: DIMENSÕES (geradas por JS) -->
+<div class="step fade-in" id="step-1"></div>
+<div class="step fade-in" id="step-2"></div>
+<div class="step fade-in" id="step-3"></div>
+<div class="step fade-in" id="step-4"></div>
+<div class="step fade-in" id="step-5"></div>
+<div class="step fade-in" id="step-6"></div>
+
+<!-- STEP 7: RESULTADO -->
+<div class="step fade-in" id="step-7"></div>
+
+</main>
+
+<div class="print-actions">
+  <button class="download-pdf-btn" id="downloadPdfBtn" onclick="baixarPDFCompleto()" title="Baixar um arquivo PDF com todas as páginas do diagnóstico">
+    ⬇️ Baixar PDF Completo
+  </button>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const dimensions = [
+  {
+    id: 1,
+    title: "Gestão Democrática",
+    objetivo: "Analisar os mecanismos de participação, transparência e tomada de decisão coletiva na escola.",
+    color: "#1a5276",
+    icon: "🏛️",
+    questions: [
+      "O conselho escolar participa das decisões pedagógicas e administrativas.",
+      "A equipe gestora promove espaços de diálogo com professores e estudantes.",
+      "As famílias participam das ações e decisões da escola.",
+      "A escola divulga informações de forma transparente.",
+      "Os estudantes possuem espaços de representação e participação."
+    ],
+    openQ: "Quais desafios a escola enfrenta para fortalecer a gestão democrática?"
+  },
+  {
+    id: 2,
+    title: "Currículo e Práticas Pedagógicas",
+    objetivo: "Verificar se o currículo e as práticas pedagógicas promovem equidade, inclusão e valorização da diversidade.",
+    color: "#117a65",
+    icon: "📚",
+    questions: [
+      "O currículo contempla a diversidade cultural e social dos estudantes.",
+      "A escola desenvolve práticas voltadas à educação das relações étnico-raciais.",
+      "Os professores utilizam metodologias diversificadas.",
+      "As práticas pedagógicas consideram diferentes ritmos de aprendizagem.",
+      "Os conteúdos dialogam com a realidade dos estudantes."
+    ],
+    openQ: "Como a escola trabalha a diversidade e a inclusão no currículo?"
+  },
+  {
+    id: 3,
+    title: "Avaliação e Aprendizagem",
+    objetivo: "Analisar se os processos avaliativos contribuem para a aprendizagem e redução das desigualdades.",
+    color: "#7d6608",
+    icon: "📊",
+    questions: [
+      "A escola realiza avaliações diagnósticas periódicas.",
+      "Os resultados das avaliações orientam intervenções pedagógicas.",
+      "Existem ações de recomposição das aprendizagens.",
+      "Os estudantes recebem devolutivas sobre seu desempenho.",
+      "A avaliação respeita diferentes formas e tempos de aprendizagem."
+    ],
+    openQ: "Quais são os principais desafios relacionados à aprendizagem dos estudantes?"
+  },
+  {
+    id: 4,
+    title: "Adequação dos Espaços Escolares",
+    objetivo: "Avaliar se os espaços escolares garantem acessibilidade, acolhimento e condições adequadas de aprendizagem.",
+    color: "#6e2f8a",
+    icon: "🏗️",
+    questions: [
+      "A escola possui estrutura física adequada para todos os estudantes.",
+      "Os espaços escolares são acessíveis para pessoas com deficiência.",
+      "As salas de aula possuem condições adequadas de funcionamento.",
+      "A escola dispõe de ambientes pedagógicos diversificados.",
+      "Os estudantes sentem-se acolhidos e seguros na escola."
+    ],
+    openQ: "Quais melhorias estruturais são prioritárias para a escola?"
+  },
+  {
+    id: 5,
+    title: "Questões Raciais e Diversidade",
+    objetivo: "Analisar as ações de enfrentamento ao racismo e promoção da igualdade racial.",
+    color: "#922b21",
+    icon: "✊",
+    questions: [
+      "A escola desenvolve ações de combate ao racismo.",
+      "Há valorização da cultura afro-brasileira e indígena nas práticas escolares.",
+      "Casos de discriminação racial são acompanhados pela gestão escolar.",
+      "Os materiais pedagógicos representam diferentes grupos sociais e raciais.",
+      "A escola promove uma cultura de respeito às diferenças."
+    ],
+    openQ: "Quais ações podem fortalecer a equidade racial na escola?"
+  },
+  {
+    id: 6,
+    title: "Questões Socioeconômicas",
+    objetivo: "Identificar fatores socioeconômicos que impactam o acesso, permanência e aprendizagem dos estudantes.",
+    color: "#1a5276",
+    icon: "🤝",
+    questions: [
+      "A escola identifica estudantes em situação de vulnerabilidade social.",
+      "Existem ações de apoio aos estudantes com dificuldades socioeconômicas.",
+      "Os estudantes possuem acesso adequado às tecnologias digitais.",
+      "A alimentação escolar contribui para a permanência dos estudantes.",
+      "Questões socioeconômicas impactam a frequência e aprendizagem."
+    ],
+    openQ: "Quais fatores socioeconômicos mais afetam os estudantes da escola?"
+  }
+];
+
+const scaleLabels = ["Nunca / Inadequado", "Às vezes / Parcial", "Frequentemente / Adequado", "Sempre / Totalmente"];
+
+// ============================================================
+// STATE
+// ============================================================
+let currentStep = 0;
+const totalSteps = 8;
+const answers = {}; // answers[dimIdx][qIdx] = value (1-4)
+const openAnswers = {};
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('dataPreenchimento').valueAsDate = new Date();
+  dimensions.forEach((dim, i) => buildDimStep(dim, i));
+  updateProgress();
+});
+
+function buildDimStep(dim, i) {
+  answers[i] = Array(dim.questions.length).fill(null);
+  const step = document.getElementById(`step-${i+1}`);
+
+  const scaleRow = `<tr>
+    <th style="border-radius:8px 0 0 0">Indicador</th>
+    <th>1<br><span style="font-weight:400;font-size:0.65rem">Nunca</span></th>
+    <th>2<br><span style="font-weight:400;font-size:0.65rem">Às vezes</span></th>
+    <th>3<br><span style="font-weight:400;font-size:0.65rem">Frequente</span></th>
+    <th style="border-radius:0 8px 0 0">4<br><span style="font-weight:400;font-size:0.65rem">Sempre</span></th>
+  </tr>`;
+
+  const scaleLabels = ['Nunca','Às vezes','Frequente','Sempre'];
+  const qRows = dim.questions.map((q, qi) => `
+    <tr>
+      <td style="max-width:380px">${q}</td>
+      ${[1,2,3,4].map(v => `
+        <td style="text-align:center" data-label="${v} · ${scaleLabels[v-1]}">
+          <div class="radio-group">
+            <button class="radio-btn" id="btn-${i}-${qi}-${v}" onclick="setAnswer(${i},${qi},${v})">${v}</button>
+          </div>
+        </td>
+      `).join('')}
+    </tr>
+  `).join('');
+
+  step.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div class="dim-badge" style="background:linear-gradient(135deg,${dim.color},${dim.color}bb)">
+          <span>${dim.icon}</span>D${dim.id}
+        </div>
+        <div class="card-header-text">
+          <h2>Dimensão ${dim.id} — ${dim.title}</h2>
+          <p>${dim.objetivo}</p>
+        </div>
+      </div>
+      <div class="dim-score-bar">
+        <div class="dim-score-label">Pontuação média desta dimensão</div>
+        <div class="dim-score-mini"><div class="dim-score-mini-fill" id="mini-fill-${i}" style="background:${dim.color}"></div></div>
+        <div class="dim-score-value" id="mini-val-${i}" style="color:${dim.color}">—</div>
+      </div>
+      <table class="questions-table">
+        <thead>${scaleRow}</thead>
+        <tbody>${qRows}</tbody>
+      </table>
+      <div class="open-question">
+        <label>💬 ${dim.openQ}</label>
+        <textarea id="open-${i}" placeholder="Descreva brevemente..." oninput="openAnswers[${i}]=this.value"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prevStep()">← Anterior</button>
+        <button class="btn btn-primary" onclick="nextStep()">Próximo →</button>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function goToStep(n) {
+  document.getElementById(`step-${currentStep}`).classList.remove('active');
+  document.getElementById(`step-${n}`).classList.add('active','fade-in');
+  currentStep = n;
+  updateProgress();
+  updateNavPills();
+  if (n === 7) buildResult();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function nextStep() {
+  if (currentStep < totalSteps - 1) goToStep(currentStep + 1);
+}
+function prevStep() {
+  if (currentStep > 0) goToStep(currentStep - 1);
+}
+
+function updateNavPills() {
+  const pills = document.querySelectorAll('.step-pill');
+  pills.forEach((p, i) => {
+    p.classList.remove('active','done');
+    if (i === currentStep) p.classList.add('active');
+    else if (i < currentStep) p.classList.add('done');
+  });
+}
+
+function updateProgress() {
+  // Count answered questions
+  let total = 0, done = 0;
+  dimensions.forEach((dim, i) => {
+    total += dim.questions.length;
+    answers[i].forEach(a => { if (a !== null) done++; });
+  });
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const stepPct = Math.round((currentStep / (totalSteps - 1)) * 100);
+  document.getElementById('progressFill').style.width = Math.max(stepPct, pct > 0 ? 8 : 0) + '%';
+  document.getElementById('progressText').textContent = `Etapa ${currentStep + 1} de ${totalSteps}`;
+  document.getElementById('progressPct').textContent = `${pct}% das questões respondidas`;
+}
+
+// ============================================================
+// ANSWERS
+// ============================================================
+function setAnswer(dimIdx, qIdx, value) {
+  answers[dimIdx][qIdx] = value;
+  // Update button styles
+  [1,2,3,4].forEach(v => {
+    const btn = document.getElementById(`btn-${dimIdx}-${qIdx}-${v}`);
+    btn.className = 'radio-btn';
+    if (v === value) btn.classList.add(`selected-${v}`);
+  });
+  updateDimScore(dimIdx);
+  updateProgress();
+}
+
+function updateDimScore(i) {
+  const vals = answers[i].filter(v => v !== null);
+  if (vals.length === 0) return;
+  const avg = vals.reduce((a,b) => a+b, 0) / vals.length;
+  const fill = document.getElementById(`mini-fill-${i}`);
+  const val = document.getElementById(`mini-val-${i}`);
+  if (fill) fill.style.width = ((avg - 1) / 3 * 100) + '%';
+  if (val) val.textContent = avg.toFixed(2);
+}
+
+// ============================================================
+// RESULT
+// ============================================================
+function getLevel(avg) {
+  if (avg >= 3.5) return { label: 'Consolidado', cls: 'level-consolidado', color: '#1a5276' };
+  if (avg >= 2.5) return { label: 'Em Desenvolvimento', cls: 'level-desenvolvimento', color: '#1e8449' };
+  if (avg >= 1.5) return { label: 'Atenção', cls: 'level-atencao', color: '#e67e22' };
+  return { label: 'Crítico', cls: 'level-critico', color: '#c0392b' };
+}
+
+function dimAvg(i) {
+  const vals = answers[i].filter(v => v !== null);
+  if (!vals.length) return 0;
+  return vals.reduce((a,b)=>a+b,0) / vals.length;
+}
+
+const actionPlans = {
+  'Consolidado': {
+    icon: '✅',
+    bg: '#eaf4fb',
+    border: '#2e86c1',
+    strategies: [
+      'Documentar e sistematizar as boas práticas identificadas nesta dimensão.',
+      'Compartilhar experiências com outras escolas da rede como referência.',
+      'Manter monitoramento contínuo para sustentação dos resultados.'
+    ]
+  },
+  'Em Desenvolvimento': {
+    icon: '🔧',
+    bg: '#e9f7ef',
+    border: '#27ae60',
+    strategies: [
+      'Fortalecer as ações já iniciadas com apoio institucional e formação continuada.',
+      'Estabelecer metas de curto prazo para avançar para o nível Consolidado.',
+      'Envolver mais atores da comunidade escolar nas decisões relacionadas a esta dimensão.'
+    ]
+  },
+  'Atenção': {
+    icon: '⚠️',
+    bg: '#fef9e7',
+    border: '#e67e22',
+    strategies: [
+      'Realizar reunião com equipe gestora e pedagógica para diagnóstico aprofundado.',
+      'Elaborar plano específico de intervenção com responsáveis e prazos definidos.',
+      'Solicitar apoio da secretaria de educação para formação e recursos nesta dimensão.'
+    ]
+  },
+  'Crítico': {
+    icon: '🚨',
+    bg: '#fdedec',
+    border: '#c0392b',
+    strategies: [
+      'Acionar imediatamente equipe técnica da secretaria de educação para suporte.',
+      'Incluir esta dimensão como prioridade máxima no Plano de Ação Escolar.',
+      'Estabelecer cronograma de acompanhamento mensal dos indicadores críticos.',
+      'Buscar parcerias com órgãos externos (ONG, universidades, conselho tutelar, etc.) conforme a dimensão.'
+    ]
+  }
+};
+
+function buildResult() {
+  const avgs = dimensions.map((_, i) => dimAvg(i));
+  const validAvgs = avgs.filter(a => a > 0);
+  const geral = validAvgs.length ? validAvgs.reduce((a,b)=>a+b,0) / validAvgs.length : 0;
+  const level = getLevel(geral);
+
+  const escola = document.getElementById('nomeEscola').value || 'Escola não identificada';
+  const data = document.getElementById('dataPreenchimento').value || '';
+
+  // Dim cards
+  const dimCards = dimensions.map((dim, i) => {
+    const avg = avgs[i];
+    const lv = getLevel(avg);
+    const pct = avg > 0 ? ((avg - 1) / 3 * 100) : 0;
+    return `
+      <div class="result-dim-card" style="border-left-color:${dim.color}">
+        <div class="dim-name">${dim.icon} D${dim.id} – ${dim.title}</div>
+        <div class="dim-val" style="color:${dim.color}">${avg > 0 ? avg.toFixed(2) : '—'}</div>
+        <span class="dim-level ${lv.cls}">${avg > 0 ? lv.label : 'Não respondida'}</span>
+        <div class="dim-bar-wrap"><div class="dim-bar-fill" style="width:${pct}%;background:${dim.color}"></div></div>
+      </div>
+    `;
+  }).join('');
+
+  // Action plans
+  const planItems = dimensions.map((dim, i) => {
+    const avg = avgs[i];
+    if (avg === 0) return '';
+    const lv = getLevel(avg);
+    const plan = actionPlans[lv.label];
+    return `
+      <div class="plano-item" style="background:${plan.bg};border-left-color:${plan.border}">
+        <div class="plano-level">${plan.icon} ${lv.label}</div>
+        <h4 style="color:${plan.border}">${dim.icon} Dimensão ${dim.id} — ${dim.title} (${avg.toFixed(2)})</h4>
+        <ul>${plan.strategies.map(s => `<li>${s}</li>`).join('')}</ul>
+      </div>
+    `;
+  }).join('');
+
+  const step7 = document.getElementById('step-7');
+  step7.innerHTML = `
+    <div class="card">
+      <div class="result-hero">
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:8px">📋 ${escola} &nbsp;|&nbsp; ${data}</p>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:16px">Média Geral de Equidade</p>
+        <div class="result-score-big" style="color:${level.color}">${geral > 0 ? geral.toFixed(2) : '—'}</div>
+        <div class="result-level ${level.cls}">${geral > 0 ? level.label : 'Preencha o diagnóstico'}</div>
+        <p style="margin-top:16px;color:var(--muted);font-size:0.82rem;max-width:480px;margin-inline:auto">
+          Escala: 1.0–1.4 Crítico &nbsp;|&nbsp; 1.5–2.4 Atenção &nbsp;|&nbsp; 2.5–3.4 Em Desenvolvimento &nbsp;|&nbsp; 3.5–4.0 Consolidado
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--primary);margin-bottom:20px;font-size:1.05rem">📈 Pontuação por Dimensão</h3>
+      <div class="result-grid">${dimCards}</div>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--primary);margin-bottom:20px;font-size:1.05rem">🕸️ Perfil Visual de Equidade</h3>
+      <div class="chart-wrap">
+        <canvas id="radarChart" height="340"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--primary);margin-bottom:8px;font-size:1.05rem">📋 Plano de Ação Sugerido</h3>
+      <p style="color:var(--muted);font-size:0.83rem;margin-bottom:20px">Estratégias automáticas baseadas no nível de cada dimensão</p>
+      ${planItems || '<p style="color:var(--muted)">Responda as dimensões para gerar o plano de ação.</p>'}
+    </div>
+
+    ${buildOpenAnswersCard()}
+
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-secondary" onclick="prevStep()">← Revisar</button>
+      <button class="btn btn-success" id="downloadPdfBtnInline" onclick="baixarPDFCompleto()">⬇️ Baixar PDF Completo</button>
+    </div>
+  `;
+
+  // Radar chart
+  setTimeout(() => {
+    const ctx = document.getElementById('radarChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: dimensions.map(d => `D${d.id} ${d.title.split(' ').slice(0,2).join(' ')}`),
+        datasets: [{
+          label: 'Pontuação',
+          data: avgs.map(a => a || 0),
+          backgroundColor: 'rgba(26,82,118,0.15)',
+          borderColor: '#1a5276',
+          borderWidth: 2.5,
+          pointBackgroundColor: dimensions.map(d => d.color),
+          pointRadius: 5,
+          pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          r: {
+            min: 0, max: 4, ticks: { stepSize: 1, font: { size: 11 } },
+            pointLabels: { font: { size: 11 }, color: '#2c3e50' },
+            grid: { color: 'rgba(0,0,0,0.1)' }
+          }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }, 100);
+}
+
+// ============================================================
+// BAIXAR PDF COMPLETO
+// O PDF é montado bloco a bloco: cada bloco (cabeçalho, linha de
+// tabela, cartão...) vira uma imagem e é posicionado na página A4
+// sem NUNCA ser cortado ao meio. Páginas só são criadas quando há
+// conteúdo, então não existem páginas em branco.
+// ============================================================
+function pdfEsc(t) {
+  return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+}
+function pdfFmtDate(v) {
+  if (!v) return '';
+  const p = v.split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v;
+}
+
+const PDF_PX_W = 720;
+const PDF_CSS = `
+.pdfb{width:720px;box-sizing:border-box;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1c2833;background:#fff;line-height:1.4}
+.pdfb *{box-sizing:border-box;margin:0;padding:0}
+.pdfb .cover{background:linear-gradient(135deg,#1a5276,#2e86c1);color:#fff;border-radius:12px;padding:24px 28px}
+.pdfb .cover h1{font-size:26px;font-weight:800}
+.pdfb .cover p{font-size:13px;opacity:.9;margin-top:6px}
+.pdfb .sec{font-size:16px;font-weight:800;color:#1a5276;padding:4px 0 8px;border-bottom:2px solid #aed6f1;margin-bottom:12px}
+.pdfb .sub{font-size:12px;color:#5d6d7e;margin:-4px 0 12px}
+.pdfb .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}
+.pdfb .f span{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#5d6d7e}
+.pdfb .f b{display:block;font-size:14px;font-weight:600;margin-top:2px;padding-bottom:4px;border-bottom:1px solid #e5e8e8}
+.pdfb .hero{text-align:center;padding:10px 0 6px}
+.pdfb .hero .lbl{font-size:13px;color:#5d6d7e}
+.pdfb .hero .big{font-size:60px;font-weight:900;line-height:1.1;margin:4px 0}
+.pdfb .pill{display:inline-block;font-size:17px;font-weight:700;padding:6px 22px;border-radius:30px}
+.pdfb .scale{font-size:11px;color:#5d6d7e;margin-top:12px}
+.pdfb .dc{padding:12px 14px;border-radius:10px;border:1px solid #e5e8e8;border-left:5px solid #1a5276;background:#fff}
+.pdfb .dc .n{font-size:11px;font-weight:700;color:#5d6d7e;text-transform:uppercase}
+.pdfb .dc .v{font-size:28px;font-weight:900;margin:2px 0}
+.pdfb .dc .l{font-size:11px;font-weight:700;padding:2px 10px;border-radius:12px;display:inline-block}
+.pdfb .dc .bar{height:6px;background:#d5dbdb;border-radius:3px;margin-top:8px;overflow:hidden}
+.pdfb .dc .bar i{display:block;height:100%}
+.pdfb .dimhead{display:flex;align-items:center;gap:14px;background:#f0f4f8;border-radius:10px;padding:14px 16px}
+.pdfb .badge{width:46px;height:46px;border-radius:10px;color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;flex:none}
+.pdfb .dtxt{flex:1}
+.pdfb .dtxt h2{font-size:17px;font-weight:800;color:#1a5276}
+.pdfb .dtxt p{font-size:12px;color:#5d6d7e;margin-top:3px}
+.pdfb .dscore{text-align:right;flex:none}
+.pdfb .dscore b{display:block;font-size:26px;font-weight:900;line-height:1}
+.pdfb .dscore span{font-size:11px;font-weight:700;color:#5d6d7e}
+.pdfb .thead{display:flex;background:#1a5276;color:#fff;font-size:12px;font-weight:700;border-radius:8px 8px 0 0}
+.pdfb .thead .q{flex:1;padding:10px 14px}
+.pdfb .thead .a{width:190px;padding:10px 14px}
+.pdfb .row{display:flex;border:1px solid #d5dbdb;border-top:none;font-size:13px}
+.pdfb .row.last{border-radius:0 0 8px 8px}
+.pdfb .row .q{flex:1;padding:11px 14px}
+.pdfb .row .q .n{display:inline-block;min-width:22px;font-weight:800;color:#2e86c1}
+.pdfb .row .a{width:190px;padding:10px 14px;display:flex;align-items:center;gap:8px;border-left:1px solid #d5dbdb;font-size:12px;font-weight:700}
+.pdfb .row .a .c{width:26px;height:26px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:none}
+.pdfb .open{border-left:4px solid #2e86c1;background:#f8fafc;border-radius:0 8px 8px 0;padding:12px 16px}
+.pdfb .open .ol{font-size:12px;font-weight:700;color:#5d6d7e;margin-bottom:6px}
+.pdfb .open .ot{font-size:13px}
+.pdfb .plan{padding:16px 18px;border-radius:10px;border-left:5px solid}
+.pdfb .plan .pl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.75;margin-bottom:6px}
+.pdfb .plan h4{font-size:14px;font-weight:800;margin-bottom:6px}
+.pdfb .plan ul{margin-left:18px}
+.pdfb .plan li{font-size:12.5px;margin-bottom:3px}
+`;
+
+const PDF_LEVEL = {
+  'Consolidado':        { bg: '#d6eaf8', fg: '#1a5276' },
+  'Em Desenvolvimento': { bg: '#d5f5e3', fg: '#1e8449' },
+  'Atenção':            { bg: '#fdebd0', fg: '#e67e22' },
+  'Crítico':            { bg: '#fadbd8', fg: '#c0392b' }
+};
+const PDF_ANS = {
+  1: { l: 'Nunca',     c: '#c0392b', b: '#fadbd8' },
+  2: { l: 'Às vezes',  c: '#e67e22', b: '#fdebd0' },
+  3: { l: 'Frequente', c: '#27ae60', b: '#d5f5e3' },
+  4: { l: 'Sempre',    c: '#1a5276', b: '#d6eaf8' }
+};
+
+// Gráfico radar desenhado fora da tela (não depende da etapa de Resultado)
+function pdfRadarImage(avgs) {
+  if (typeof Chart === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 720; c.height = 520;
+  const ch = new Chart(c.getContext('2d'), {
+    type: 'radar',
+    data: {
+      labels: dimensions.map(d => `D${d.id} ${d.title.split(' ').slice(0,2).join(' ')}`),
+      datasets: [{
+        data: avgs.map(a => a || 0),
+        backgroundColor: 'rgba(26,82,118,0.15)', borderColor: '#1a5276', borderWidth: 3,
+        pointBackgroundColor: dimensions.map(d => d.color), pointRadius: 6
+      }]
+    },
+    options: {
+      responsive: false, animation: false, devicePixelRatio: 2,
+      scales: { r: { min: 0, max: 4, ticks: { stepSize: 1, font: { size: 14 }, backdropColor: 'rgba(255,255,255,0)' },
+        pointLabels: { font: { size: 15 }, color: '#2c3e50' }, grid: { color: 'rgba(0,0,0,0.12)' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+  const url = c.toDataURL('image/png');
+  ch.destroy();
+  return url;
+}
+
+// Monta a lista de "operações" do PDF (o que vai em cada página)
+function pdfBuildOps() {
+  const val = id => (document.getElementById(id) || {}).value || '';
+  const avgs = dimensions.map((_, i) => dimAvg(i));
+  const valid = avgs.filter(a => a > 0);
+  const geral = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : 0;
+  const lvG = getLevel(geral);
+  const ops = [];
+  const B = (inner) => `<div class="pdfb">${inner}</div>`;
+
+  const mods = [...document.querySelectorAll('input[name="modalidade"]:checked')].map(e => e.value).join(', ');
+  const loc = (document.querySelector('input[name="localizacao"]:checked') || {}).value || '';
+  const campo = (l, v) => `<div class="f"><span>${l}</span><b>${pdfEsc(v) || '—'}</b></div>`;
+  const hoje = new Date().toLocaleDateString('pt-BR');
+
+  // ---------- Página 1: capa + identificação + resultado geral ----------
+  const capa = B(`
+    <div class="cover"><h1>Diagnóstico de Equidade Escolar</h1><p>Relatório completo &nbsp;•&nbsp; Gerado em ${hoje}</p></div>
+    <div class="sec" style="margin-top:20px">📋 Identificação da Escola</div>
+    <div class="grid2">
+      <div style="grid-column:1/-1">${campo('Nome da Escola', val('nomeEscola'))}</div>
+      ${campo('Município', val('municipio'))}
+      ${campo('Rede', val('rede'))}
+      ${campo('Localização', loc)}
+      ${campo('Modalidade', mods)}
+      ${campo('Nº de Estudantes', val('numEstudantes'))}
+      ${campo('Data', pdfFmtDate(val('dataPreenchimento')))}
+      ${campo('Responsável', val('responsavel'))}
+      ${campo('Função', val('funcao'))}
+    </div>`);
+
+  const ls = PDF_LEVEL[lvG.label];
+  const geralBlk = B(`
+    <div class="sec">📊 Resultado Geral</div>
+    <div class="hero">
+      <div class="lbl">Média Geral de Equidade</div>
+      <div class="big" style="color:${lvG.color}">${geral > 0 ? geral.toFixed(2) : '—'}</div>
+      <span class="pill" style="background:${ls.bg};color:${ls.fg}">${geral > 0 ? lvG.label : 'Diagnóstico não preenchido'}</span>
+      <div class="scale">Escala: 1,0–1,4 Crítico &nbsp;|&nbsp; 1,5–2,4 Atenção &nbsp;|&nbsp; 2,5–3,4 Em Desenvolvimento &nbsp;|&nbsp; 3,5–4,0 Consolidado</div>
+    </div>`);
+
+  const cards = dimensions.map((dim, i) => {
+    const a = avgs[i], lv = getLevel(a), st = PDF_LEVEL[lv.label];
+    const pct = a > 0 ? ((a - 1) / 3 * 100) : 0;
+    return `<div class="dc" style="border-left-color:${dim.color}">
+      <div class="n">${dim.icon} D${dim.id} – ${pdfEsc(dim.title)}</div>
+      <div class="v" style="color:${dim.color}">${a > 0 ? a.toFixed(2) : '—'}</div>
+      <span class="l" style="background:${a > 0 ? st.bg : '#eaeded'};color:${a > 0 ? st.fg : '#5d6d7e'}">${a > 0 ? lv.label : 'Não respondida'}</span>
+      <div class="bar"><i style="width:${pct}%;background:${dim.color}"></i></div>
+    </div>`;
+  }).join('');
+  const cardsBlk = B(`<div class="sec">📈 Pontuação por Dimensão</div><div class="grid2" style="gap:14px">${cards}</div>`);
+
+  ops.push({ g: [{ html: capa }, { html: geralBlk }, { html: cardsBlk }] });
+
+  // ---------- Gráfico radar + plano de ação ----------
+  ops.push({ newPage: true });
+  const radar = pdfRadarImage(avgs);
+  if (radar) {
+    ops.push({ g: [{ html: B(`<div class="sec">🕸️ Perfil Visual de Equidade</div><img src="${radar}" style="display:block;width:560px;margin:0 auto">`) }] });
+  }
+  const planos = [];
+  dimensions.forEach((dim, i) => {
+    if (avgs[i] === 0) return;
+    const lv = getLevel(avgs[i]);
+    const plan = actionPlans[lv.label];
+    planos.push(`<div class="plan" style="background:${plan.bg};border-left-color:${plan.border}">
+      <div class="pl">${plan.icon} ${lv.label}</div>
+      <h4 style="color:${plan.border}">${dim.icon} Dimensão ${dim.id} — ${pdfEsc(dim.title)} (${avgs[i].toFixed(2)})</h4>
+      <ul>${plan.strategies.map(t => `<li>${pdfEsc(t)}</li>`).join('')}</ul>
+    </div>`);
+  });
+  const planTitle = `<div class="sec">📋 Plano de Ação Sugerido</div><div class="sub">Estratégias automáticas baseadas no nível de cada dimensão</div>`;
+  if (planos.length) {
+    ops.push({ g: [{ html: B(planTitle + planos[0]) }] });
+    planos.slice(1).forEach(h => ops.push({ g: [{ html: B(h) }] }));
+  } else {
+    ops.push({ g: [{ html: B(planTitle + '<div class="sub">Responda as dimensões para gerar o plano de ação.</div>') }] });
+  }
+
+  // ---------- Uma página por dimensão ----------
+  dimensions.forEach((dim, i) => {
+    const a = avgs[i], lv = getLevel(a);
+    ops.push({ newPage: true });
+    const head = B(`<div class="dimhead" style="border-left:6px solid ${dim.color}">
+      <div class="badge" style="background:${dim.color}">${dim.icon}</div>
+      <div class="dtxt"><h2>Dimensão ${dim.id} — ${pdfEsc(dim.title)}</h2><p>${pdfEsc(dim.objetivo)}</p></div>
+      <div class="dscore"><b style="color:${dim.color}">${a > 0 ? a.toFixed(2) : '—'}</b><span>${a > 0 ? lv.label : 'Não respondida'}</span></div>
+    </div>`);
+    const thead = B(`<div class="thead"><div class="q">Indicador</div><div class="a">Resposta</div></div>`);
+    const rows = dim.questions.map((q, qi) => {
+      const v = answers[i][qi];
+      const an = PDF_ANS[v];
+      const resp = an
+        ? `<div class="a" style="background:${an.b};color:${an.c}"><span class="c" style="border-color:${an.c}">${v}</span>${an.l}</div>`
+        : `<div class="a" style="color:#7b8794"><span class="c" style="border-color:#c5cbd0">–</span>Não respondida</div>`;
+      return B(`<div class="row${qi === dim.questions.length - 1 ? ' last' : ''}"><div class="q"><span class="n">${qi + 1}.</span>${pdfEsc(q)}</div>${resp}</div>`);
+    });
+
+    // cabeçalho + cabeçalho da tabela + 1ª linha ficam sempre juntos
+    ops.push({ g: [{ html: head }, { html: thead, flush: true, isHead: true }, { html: rows[0], flush: rows.length > 1 }] });
+    rows.slice(1).forEach((h, k) => ops.push({ row: { html: h, flush: k < rows.length - 2 } }));
+
+    const txt = (openAnswers[i] || '').trim();
+    ops.push({ g: [{ html: B(`<div class="open" style="margin-top:6px"><div class="ol">💬 ${pdfEsc(dim.openQ)}</div><div class="ot">${txt ? pdfEsc(txt) : '<i style="color:#7b8794">Sem resposta registrada.</i>'}</div></div>`) }] });
+  });
+
+  return ops;
+}
+
+async function baixarPDFCompleto() {
+  const botoes = [document.getElementById('downloadPdfBtn'), document.getElementById('downloadPdfBtnInline')].filter(Boolean);
+  const textos = botoes.map(b => b.innerHTML);
+  const travar = t => botoes.forEach(b => { b.disabled = true; b.innerHTML = t; });
+  const destravar = () => botoes.forEach((b, i) => { b.disabled = false; b.innerHTML = textos[i]; });
+
+  if (typeof html2canvas === 'undefined' || !window.jspdf) {
+    alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão com a internet e tente novamente.');
+    return;
+  }
+
+  // iOS/iPadOS: abre a aba AGORA (dentro do toque do usuário) para o Safari não bloquear
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let winIOS = null;
+  if (isIOS) {
+    try {
+      winIOS = window.open('', '_blank');
+      if (winIOS) winIOS.document.write('<meta name="viewport" content="width=device-width,initial-scale=1"><p style="font-family:sans-serif;padding:24px;font-size:18px">⏳ Gerando PDF, aguarde...</p>');
+    } catch (e) { winIOS = null; }
+  }
+
+  travar('⏳ Gerando PDF...');
+  const style = document.createElement('style');
+  style.textContent = PDF_CSS;
+  document.head.appendChild(style);
+  const stage = document.createElement('div');
+  stage.id = 'pdfStage';
+  stage.style.cssText = `position:fixed;left:-10000px;top:0;width:${PDF_PX_W}px;background:#fff;z-index:-1;pointer-events:none`;
+  document.body.appendChild(stage);
+
+  try {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+    const PW = 210, PH = 297, M = 12, CW = PW - 2 * M, GAP = 3.5;
+    const MAXY = PH - 15;                       // reserva o rodapé
+    const scale = window.innerWidth < 700 ? 1.6 : 2;
+
+    const ops = pdfBuildOps();
+    let total = 0, feitos = 0;
+    ops.forEach(o => { total += o.g ? o.g.length : (o.row ? 1 : 0); });
+
+    async function render(b) {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = b.html;
+      const node = wrap.firstElementChild;
+      stage.appendChild(node);
+      const canvas = await html2canvas(node, {
+        scale, backgroundColor: '#ffffff', logging: false, useCORS: true,
+        windowWidth: PDF_PX_W, scrollX: 0, scrollY: 0,
+        onclone: d => { const s = d.getElementById('pdfStage'); if (s) { s.style.left = '0px'; s.style.top = '0px'; } }
+      });
+      stage.removeChild(node);
+      feitos++;
+      travar(`⏳ Gerando PDF... ${Math.round(feitos / total * 100)}%`);
+      return { data: canvas.toDataURL('image/jpeg', 0.92), h: canvas.height / canvas.width * CW, flush: !!b.flush, isHead: !!b.isHead };
+    }
+
+    let y = M, tableHdr = null;
+    const novaPagina = () => { pdf.addPage(); y = M; };
+    const gapDe = it => it.flush ? 0 : GAP;
+    const put = it => {
+      let w = CW, h = it.h;
+      const maxH = MAXY - M;
+      if (h > maxH) { w = CW * maxH / h; h = maxH; }   // proteção: bloco maior que a página
+      pdf.addImage(it.data, 'JPEG', M + (CW - w) / 2, y, w, h, undefined, 'FAST');
+      y += h + gapDe(it);
+    };
+
+    for (const op of ops) {
+      if (op.newPage) { if (y > M + 0.1) novaPagina(); continue; }
+
+      if (op.g) {
+        const items = [];
+        for (const b of op.g) items.push(await render(b));
+        const soma = items.reduce((s, it) => s + it.h + gapDe(it), 0);
+        if (y + soma > MAXY && y > M + 0.1 && soma <= MAXY - M) novaPagina();   // grupo nunca é dividido
+        for (const it of items) {
+          if (y + it.h > MAXY && y > M + 0.1) novaPagina();
+          put(it);
+          if (it.isHead) tableHdr = it;
+        }
+      } else if (op.row) {
+        const it = await render(op.row);
+        if (y + it.h > MAXY) {          // linha não cabe: vai inteira para a próxima página
+          novaPagina();
+          if (tableHdr) put(tableHdr);  // repete o cabeçalho da tabela
+        }
+        put(it);
+      }
+    }
+
+    // Rodapé com paginação
+    const n = pdf.getNumberOfPages();
+    let escola = (document.getElementById('nomeEscola') || {}).value || '';
+    escola = escola.trim().slice(0, 55);
+    for (let p = 1; p <= n; p++) {
+      pdf.setPage(p);
+      pdf.setDrawColor(213, 219, 219);
+      pdf.line(M, PH - 11, PW - M, PH - 11);
+      pdf.setFontSize(8);
+      pdf.setTextColor(93, 109, 126);
+      pdf.text('Diagnóstico de Equidade Escolar' + (escola ? ' - ' + escola : ''), M, PH - 7);
+      pdf.text('Página ' + p + ' de ' + n, PW - M, PH - 7, { align: 'right' });
+    }
+    pdf.setProperties({ title: 'Diagnóstico de Equidade Escolar', subject: escola });
+
+    let sufixo = '';
+    if (escola) {
+      sufixo = '-' + escola.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+    const nomeArquivo = 'diagnostico-equidade' + sufixo + '.pdf';
+
+    const blob = pdf.output('blob');
+    const url = URL.createObjectURL(blob);
+    const baixarPorLink = () => {
+      const a = document.createElement('a');
+      a.href = url; a.download = nomeArquivo; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+
+    if (isIOS && winIOS) { winIOS.location.href = url; }   // Compartilhar > Salvar em Arquivos
+    else { baixarPorLink(); }
+    setTimeout(() => URL.revokeObjectURL(url), 180000);
+
+  } catch (err) {
+    console.error('Erro ao gerar PDF:', err);
+    if (winIOS) { try { winIOS.close(); } catch (e) {} }
+    alert('Ocorreu um erro ao gerar o PDF. Tente novamente.');
+  } finally {
+    stage.remove();
+    style.remove();
+    destravar();
+  }
+}
+
+function buildOpenAnswersCard() {
+  const items = dimensions.map((dim, i) => {
+    const txt = openAnswers[i] || '';
+    if (!txt.trim()) return '';
+    return `<div style="margin-bottom:16px;padding:14px;background:var(--bg);border-radius:8px;border-left:3px solid ${dim.color}">
+      <p style="font-size:0.78rem;font-weight:700;color:${dim.color};margin-bottom:6px">${dim.icon} D${dim.id} — ${dim.title}</p>
+      <p style="font-size:0.87rem;color:var(--text)">${txt}</p>
+    </div>`;
+  }).join('');
+  if (!items) return '';
+  return `<div class="card">
+    <h3 style="color:var(--primary);margin-bottom:16px;font-size:1.05rem">💬 Respostas Abertas</h3>
+    ${items}
+  </div>`;
+}
+</script>
+</body>
+</html>
