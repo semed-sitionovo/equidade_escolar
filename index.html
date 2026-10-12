@@ -294,13 +294,13 @@
       </div>
       <div class="form-group">
         <label>Município *</label>
-        <input type="text" id="municipio" placeholder="Município" />
+        <input type="text" id="municipio" placeholder="Município" value="Sítio Novo - MA" />
       </div>
       <div class="form-group">
         <label>Rede *</label>
         <select id="rede">
           <option value="">Selecione...</option>
-          <option>Municipal</option>
+          <option selected>Municipal</option>
           <option>Estadual</option>
           <option>Federal</option>
         </select>
@@ -313,12 +313,21 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Modalidade *</label>
+        <label>Etapa/Modalidade *</label>
         <div class="radio-group-check">
           <label class="check-option"><input type="checkbox" name="modalidade" value="Ensino Fundamental"> Fund.</label>
           <label class="check-option"><input type="checkbox" name="modalidade" value="Ensino Médio"> Médio</label>
           <label class="check-option"><input type="checkbox" name="modalidade" value="EJA"> EJA</label>
-          <label class="check-option"><input type="checkbox" name="modalidade" value="Educação Integral"> Integral</label>
+          <label class="check-option"><input type="checkbox" name="modalidade" value="Educação Infantil"> Ed. Infantil</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Turno/Período</label>
+        <div class="radio-group-check">
+          <label class="check-option"><input type="checkbox" name="turno" value="Manhã"> Manhã</label>
+          <label class="check-option"><input type="checkbox" name="turno" value="Tarde"> Tarde</label>
+          <label class="check-option"><input type="checkbox" name="turno" value="Noite"> Noite</label>
+          <label class="check-option"><input type="checkbox" name="turno" value="Integral"> Integral</label>
         </div>
       </div>
       <div class="form-group">
@@ -902,6 +911,7 @@ function pdfBuildOps() {
   const B = (inner) => `<div class="pdfb">${inner}</div>`;
 
   const mods = [...document.querySelectorAll('input[name="modalidade"]:checked')].map(e => e.value).join(', ');
+  const turnos = [...document.querySelectorAll('input[name="turno"]:checked')].map(e => e.value).join(', ');
   const loc = (document.querySelector('input[name="localizacao"]:checked') || {}).value || '';
   const campo = (l, v) => `<div class="f"><span>${l}</span><b>${pdfEsc(v) || '—'}</b></div>`;
   const hoje = new Date().toLocaleDateString('pt-BR');
@@ -915,7 +925,8 @@ function pdfBuildOps() {
       ${campo('Município', val('municipio'))}
       ${campo('Rede', val('rede'))}
       ${campo('Localização', loc)}
-      ${campo('Modalidade', mods)}
+      ${campo('Etapa/Modalidade', mods)}
+      ${campo('Turno/Período', turnos)}
       ${campo('Nº de Estudantes', val('numEstudantes'))}
       ${campo('Data', pdfFmtDate(val('dataPreenchimento')))}
       ${campo('Responsável', val('responsavel'))}
