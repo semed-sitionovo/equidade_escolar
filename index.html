@@ -115,7 +115,14 @@
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group.full { grid-column: 1/-1; }
-  .form-group label { font-size: 0.82rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group > label {
+    font-size: 0.86rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px;
+    padding-left: 10px; border-left: 4px solid var(--primary-light);
+  }
+  .form-group .check-option {
+    font-size: 0.92rem; font-weight: 400; color: var(--text); text-transform: none; letter-spacing: 0;
+    padding: 0; border: none;
+  }
   .form-group input, .form-group select {
     border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 14px;
     font-size: 0.9rem; font-family: inherit; color: var(--text);
@@ -165,20 +172,17 @@
   .plano-item ul li { font-size: 0.86rem; margin-bottom: 4px; color: var(--text); }
   .plano-item .plano-level { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 8px; }
 
-  /* PRINT / DOWNLOAD ACTIONS */
-  .print-actions {
-    position: fixed; bottom: 24px; right: 24px; z-index: 200;
-    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  .questions-table tr.q-missing td:first-child { background: #fdecea !important; color: var(--danger); box-shadow: inset 4px 0 0 var(--danger); }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    background: #922b21; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 0.88rem; font-weight: 600;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.3); z-index: 500; opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s; max-width: calc(100vw - 32px); text-align: center;
   }
-  .download-pdf-btn {
-    border: none; border-radius: 50px !important; font-size: 0.92rem; padding: 14px 26px;
-    color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px;
-    font-family: inherit;
-  }
-  .download-pdf-btn { background: var(--primary); box-shadow: 0 6px 18px rgba(26,82,118,0.45); }
-  .download-pdf-btn:hover { background: var(--primary-light); }
-  .download-pdf-btn:disabled, #downloadPdfBtnInline:disabled { opacity: 0.7; cursor: wait; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* BOTÃO BAIXAR PDF */
+  #downloadPdfBtnInline:disabled { opacity: 0.7; cursor: wait; }
 
   @media print {
     header { position: static; }
@@ -196,7 +200,7 @@
     .steps-nav { padding: 8px 10px; gap: 6px; -webkit-overflow-scrolling: touch; }
     .step-pill { padding: 6px 11px; font-size: 0.68rem; }
 
-    main { padding: 16px 10px 160px; }
+    main { padding: 16px 10px 40px; }
     .card { padding: 18px 14px; border-radius: 10px; }
     .card-header { gap: 10px; margin-bottom: 18px; }
     .dim-badge { min-width: 44px; height: 44px; font-size: 0.58rem; }
@@ -229,8 +233,6 @@
     .result-level { font-size: 1.1rem; padding: 6px 18px; }
     .chart-wrap { max-width: 100%; }
 
-    .print-actions { bottom: 12px; right: 12px; left: 12px; align-items: stretch; gap: 8px; }
-    .download-pdf-btn { padding: 14px 16px; font-size: 0.85rem; justify-content: center; }
   }
   @media (max-width: 380px) {
     .radio-btn { width: 32px; height: 32px; font-size: 0.78rem; }
@@ -313,7 +315,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Etapa/Modalidade *</label>
+        <label>Etapas/Modalidades *</label>
         <div class="radio-group-check">
           <label class="check-option"><input type="checkbox" name="modalidade" value="Ensino Fundamental"> Fund.</label>
           <label class="check-option"><input type="checkbox" name="modalidade" value="Ensino Médio"> Médio</label>
@@ -322,7 +324,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Turno/Período</label>
+        <label>Turnos/Períodos</label>
         <div class="radio-group-check">
           <label class="check-option"><input type="checkbox" name="turno" value="Manhã"> Manhã</label>
           <label class="check-option"><input type="checkbox" name="turno" value="Tarde"> Tarde</label>
@@ -372,12 +374,6 @@
 <div class="step fade-in" id="step-7"></div>
 
 </main>
-
-<div class="print-actions">
-  <button class="download-pdf-btn" id="downloadPdfBtn" onclick="baixarPDFCompleto()" title="Baixar um arquivo PDF com todas as páginas do diagnóstico">
-    ⬇️ Baixar PDF Completo
-  </button>
-</div>
 
 <script>
 // ============================================================
@@ -509,7 +505,7 @@ function buildDimStep(dim, i) {
 
   const scaleLabels = ['Nunca','Às vezes','Frequente','Sempre'];
   const qRows = dim.questions.map((q, qi) => `
-    <tr>
+    <tr id="row-${i}-${qi}">
       <td style="max-width:380px">${q}</td>
       ${[1,2,3,4].map(v => `
         <td style="text-align:center" data-label="${v} · ${scaleLabels[v-1]}">
@@ -556,7 +552,45 @@ function buildDimStep(dim, i) {
 // ============================================================
 // NAVIGATION
 // ============================================================
-function goToStep(n) {
+function mostrarToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Dimensão (índice 0-5) com todas as bolinhas marcadas?
+function dimCompleta(i) {
+  return answers[i].every(a => a !== null);
+}
+
+// Primeira aba, entre [de, ate), que ainda tem bolinhas sem marcar
+// (a aba 0 = Identificação nunca bloqueia)
+function primeiraAbaIncompleta(de, ate) {
+  for (let st = de; st < ate; st++) {
+    if (st >= 1 && st <= dimensions.length && !dimCompleta(st - 1)) return st;
+  }
+  return -1;
+}
+
+function mostrarPendentes(st) {
+  const i = st - 1;
+  let primeira = null, faltam = 0;
+  answers[i].forEach((a, qi) => {
+    const tr = document.getElementById(`row-${i}-${qi}`);
+    if (!tr) return;
+    if (a === null) { tr.classList.add('q-missing'); faltam++; if (!primeira) primeira = tr; }
+    else tr.classList.remove('q-missing');
+  });
+  mostrarToast(faltam === 1
+    ? 'Falta marcar 1 questão nesta aba para avançar.'
+    : `Faltam ${faltam} questões a marcar nesta aba para avançar.`);
+  if (primeira) primeira.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function mostrarEtapa(n) {
   document.getElementById(`step-${currentStep}`).classList.remove('active');
   document.getElementById(`step-${n}`).classList.add('active','fade-in');
   currentStep = n;
@@ -564,6 +598,20 @@ function goToStep(n) {
   updateNavPills();
   if (n === 7) buildResult();
   window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function goToStep(n) {
+  if (n === currentStep) return;
+  // Voltar é sempre livre; avançar exige todas as bolinhas das abas puladas
+  if (n > currentStep) {
+    const bloqueada = primeiraAbaIncompleta(currentStep, n);
+    if (bloqueada !== -1) {
+      if (bloqueada !== currentStep) mostrarEtapa(bloqueada);
+      setTimeout(() => mostrarPendentes(bloqueada), bloqueada !== currentStep ? 350 : 0);
+      return;
+    }
+  }
+  mostrarEtapa(n);
 }
 
 function nextStep() {
@@ -607,6 +655,8 @@ function setAnswer(dimIdx, qIdx, value) {
     btn.className = 'radio-btn';
     if (v === value) btn.classList.add(`selected-${v}`);
   });
+  const tr = document.getElementById(`row-${dimIdx}-${qIdx}`);
+  if (tr) tr.classList.remove('q-missing');
   updateDimScore(dimIdx);
   updateProgress();
 }
@@ -767,7 +817,7 @@ function buildResult() {
     new Chart(ctx, {
       type: 'radar',
       data: {
-        labels: dimensions.map(d => `D${d.id} ${d.title.split(' ').slice(0,2).join(' ')}`),
+        labels: radarLabels(window.innerWidth < 600 ? 12 : 16),
         datasets: [{
           label: 'Pontuação',
           data: avgs.map(a => a || 0),
@@ -781,10 +831,11 @@ function buildResult() {
       },
       options: {
         responsive: true,
+        layout: { padding: { top: 6, bottom: 6, left: 10, right: 10 } },
         scales: {
           r: {
-            min: 0, max: 4, ticks: { stepSize: 1, font: { size: 11 } },
-            pointLabels: { font: { size: 11 }, color: '#2c3e50' },
+            min: 0, max: 4, ticks: { stepSize: 1, font: { size: 11 }, backdropColor: 'rgba(255,255,255,0)' },
+            pointLabels: { font: { size: window.innerWidth < 600 ? 10 : 12 }, color: '#2c3e50', padding: 6 },
             grid: { color: 'rgba(0,0,0,0.1)' }
           }
         },
@@ -873,6 +924,20 @@ const PDF_ANS = {
   4: { l: 'Sempre',    c: '#1a5276', b: '#d6eaf8' }
 };
 
+// Rótulos do radar: título completo quebrado em linhas curtas (nada fica cortado)
+function radarLabels(maxChars) {
+  return dimensions.map(d => {
+    const linhas = [`D${d.id}`];
+    let atual = '';
+    d.title.split(' ').forEach(w => {
+      if ((atual + ' ' + w).trim().length > maxChars && atual) { linhas.push(atual); atual = w; }
+      else atual = (atual + ' ' + w).trim();
+    });
+    if (atual) linhas.push(atual);
+    return linhas;
+  });
+}
+
 // Gráfico radar desenhado fora da tela (não depende da etapa de Resultado)
 function pdfRadarImage(avgs) {
   if (typeof Chart === 'undefined') return null;
@@ -881,7 +946,7 @@ function pdfRadarImage(avgs) {
   const ch = new Chart(c.getContext('2d'), {
     type: 'radar',
     data: {
-      labels: dimensions.map(d => `D${d.id} ${d.title.split(' ').slice(0,2).join(' ')}`),
+      labels: radarLabels(16),
       datasets: [{
         data: avgs.map(a => a || 0),
         backgroundColor: 'rgba(26,82,118,0.15)', borderColor: '#1a5276', borderWidth: 3,
@@ -890,8 +955,9 @@ function pdfRadarImage(avgs) {
     },
     options: {
       responsive: false, animation: false, devicePixelRatio: 2,
+      layout: { padding: { top: 10, bottom: 10, left: 30, right: 30 } },
       scales: { r: { min: 0, max: 4, ticks: { stepSize: 1, font: { size: 14 }, backdropColor: 'rgba(255,255,255,0)' },
-        pointLabels: { font: { size: 15 }, color: '#2c3e50' }, grid: { color: 'rgba(0,0,0,0.12)' } } },
+        pointLabels: { font: { size: 14 }, color: '#2c3e50', padding: 8 }, grid: { color: 'rgba(0,0,0,0.12)' } } },
       plugins: { legend: { display: false } }
     }
   });
@@ -925,8 +991,8 @@ function pdfBuildOps() {
       ${campo('Município', val('municipio'))}
       ${campo('Rede', val('rede'))}
       ${campo('Localização', loc)}
-      ${campo('Etapa/Modalidade', mods)}
-      ${campo('Turno/Período', turnos)}
+      ${campo('Etapas/Modalidades', mods)}
+      ${campo('Turnos/Períodos', turnos)}
       ${campo('Nº de Estudantes', val('numEstudantes'))}
       ${campo('Data', pdfFmtDate(val('dataPreenchimento')))}
       ${campo('Responsável', val('responsavel'))}
@@ -1013,7 +1079,7 @@ function pdfBuildOps() {
 }
 
 async function baixarPDFCompleto() {
-  const botoes = [document.getElementById('downloadPdfBtn'), document.getElementById('downloadPdfBtnInline')].filter(Boolean);
+  const botoes = [document.getElementById('downloadPdfBtnInline')].filter(Boolean);
   const textos = botoes.map(b => b.innerHTML);
   const travar = t => botoes.forEach(b => { b.disabled = true; b.innerHTML = t; });
   const destravar = () => botoes.forEach((b, i) => { b.disabled = false; b.innerHTML = textos[i]; });
